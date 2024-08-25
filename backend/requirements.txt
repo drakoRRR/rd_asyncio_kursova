@@ -1,0 +1,13 @@
+asyncpg
+sqlalchemy
+alembic
+python-dotenv
+pydantic
+greenlet
+sqlalchemy[asyncio]
+psycopg2-binary
+pytest
+fastapi
+httpx
+uvicorn
+pytest-asyncio
