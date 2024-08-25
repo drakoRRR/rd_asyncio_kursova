@@ -3,6 +3,7 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_pagination import add_pagination
 
 from src.config import DEBUG
 from src.cve_app.routers import cve_app
@@ -24,6 +25,8 @@ def create_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    add_pagination(fast_api_app)
 
     return fast_api_app
 

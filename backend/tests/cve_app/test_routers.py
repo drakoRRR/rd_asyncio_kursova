@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from starlette import status
 
 from src.cve_app.models import CVERecord
@@ -105,3 +105,78 @@ async def test_delete_cve_record(client: AsyncClient, db_async_session: AsyncSes
     db_cve = await _get_cve_by_id(cve.cve_id, db_async_session)
 
     assert db_cve is None
+
+
+async def test_get_cve_list(client: AsyncClient, db_async_session: AsyncSession):
+    cve1 = CVERecord(
+        cve_id="CVE-2024-3001",
+        published_date=datetime(2024, 4, 1),
+        last_modified_date=datetime(2024, 4, 10),
+        title="CVE 1",
+        description="Description 1",
+        problem_types="Type 1"
+    )
+    cve2 = CVERecord(
+        cve_id="CVE-2024-3002",
+        published_date=datetime(2024, 4, 2),
+        last_modified_date=datetime(2024, 4, 12),
+        title="CVE 2",
+        description="Description 2",
+        problem_types="Type 2"
+    )
+
+    db_async_session.add_all([cve1, cve2])
+    await db_async_session.commit()
+
+    response = await client.get("/cve-utils/list", params={"page": 1, "size": 2})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert len(data["items"]) == 2
+
+
+async def test_get_cve_by_text(client: AsyncClient, db_async_session: AsyncSession):
+    cve1 = CVERecord(
+        cve_id="CVE-2024-2001",
+        published_date=datetime(2024, 3, 1),
+        last_modified_date=datetime(2024, 3, 10),
+        title="Important CVE",
+        description="This is an important security vulnerability.",
+        problem_types="Security"
+    )
+    db_async_session.add(cve1)
+    await db_async_session.commit()
+
+    response = await client.get("/cve-utils/search", params={"text": "important"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["cve_id"] == "CVE-2024-2001"
+    assert "important" in data[0]["title"].lower()
+
+
+async def test_get_cve_by_date_range(client: AsyncClient, db_async_session: AsyncSession):
+    cve1 = CVERecord(
+        cve_id="CVE-2024-1001",
+        published_date=datetime(2024, 1, 1),
+        last_modified_date=datetime(2024, 1, 10),
+        title="CVE 1",
+        description="Description 1",
+        problem_types="Problem Type 1"
+    )
+    cve2 = CVERecord(
+        cve_id="CVE-2024-1002",
+        published_date=datetime(2024, 2, 1),
+        last_modified_date=datetime(2024, 2, 10),
+        title="CVE 2",
+        description="Description 2",
+        problem_types="Problem Type 2"
+    )
+    db_async_session.add_all([cve1, cve2])
+    await db_async_session.commit()
+
+    response = await client.get("/cve-utils/date-range", params={"start_date": "2024-01-01", "end_date": "2024-01-31"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["cve_id"] == "CVE-2024-1001"

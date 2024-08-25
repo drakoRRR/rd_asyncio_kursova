@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from fastapi_pagination import Page, paginate
 
-from src.cve_app.crud import get_cve_record, create_cve_record, update_cve_record, delete_cve_record
+from src.cve_app.repo import get_cve_record, create_cve_record, update_cve_record, delete_cve_record, \
+    search_cve_by_text, list_cve_records, search_cve_by_date_range
 from src.cve_app.schemas import CVERecord, CVERecordCreate, CVERecordUpdate
 from src.db import get_db
 from src.cve_app.exceptions import CVEAlreadyExistsException, CVENotFoundException
@@ -45,3 +50,32 @@ async def delete_cve(cve_id: str, db: AsyncSession = Depends(get_db)):
         raise CVENotFoundException()
     await delete_cve_record(db, cve_id)
     return {"message": "CVE deleted successfully"}
+
+
+@cve_app.get("/cve-utils/date-range", response_model=list[CVERecordCreate], status_code=status.HTTP_200_OK)
+async def get_cve_by_date_range(
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    cve_records = await search_cve_by_date_range(db, start_date, end_date)
+    return cve_records
+
+
+@cve_app.get("/cve-utils/search", response_model=list[CVERecordCreate], status_code=status.HTTP_200_OK)
+async def get_cve_by_text(
+    text: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    cve_records = await search_cve_by_text(db, text)
+    return cve_records
+
+
+@cve_app.get("/cve-utils/list", response_model=Page[CVERecordCreate], status_code=status.HTTP_200_OK)
+async def get_cve_list(
+    page: int = Query(1, alias="page"),
+    size: int = Query(10, alias="size"),
+    db: AsyncSession = Depends(get_db)
+):
+    cve_records = await list_cve_records(db, page, size)
+    return paginate(cve_records)

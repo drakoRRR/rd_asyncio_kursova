@@ -1,6 +1,7 @@
 import asyncio
 
 import pytest
+from fastapi_pagination import add_pagination
 
 from src.config import DATABASE_TEST_ASYNC_URL, DATABASE_TEST_SYNC_URL
 from typing import AsyncGenerator
@@ -12,6 +13,8 @@ from sqlalchemy.orm import sessionmaker
 
 from src.main import fastapi_app
 from src.db import Base, get_db
+
+add_pagination(fastapi_app)
 
 
 async_test_engine = create_async_engine(DATABASE_TEST_ASYNC_URL, future=True)
