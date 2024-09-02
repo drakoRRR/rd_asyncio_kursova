@@ -12,3 +12,5 @@ httpx
 uvicorn
 pytest-asyncio
 fastapi-pagination
+python-multipart
+fastapi-pagination[sqlalchemy]

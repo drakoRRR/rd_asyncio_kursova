@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -6,6 +7,9 @@ from sqlalchemy.future import select
 from sqlalchemy import update, delete
 from .models import CVERecord as CVERecordModel
 from .schemas import CVERecordCreate
+from .services import process_single_cve
+
+from fastapi_pagination.ext.sqlalchemy import paginate
 
 
 async def get_cve_record(db: AsyncSession, cve_id: str):
@@ -61,7 +65,26 @@ async def search_cve_by_text(db: AsyncSession, text: str):
 
 
 async def list_cve_records(db: AsyncSession, page: int, size: int):
-    offset = (page - 1) * size
-    query = select(CVERecordModel).offset(offset).limit(size)
-    result = await db.execute(query)
-    return result.scalars().all()
+    query = select(CVERecordModel)
+    return await paginate(db, query)
+
+
+async def upload_batch_cves(db: AsyncSession, data_list: list[CVERecordModel]):
+    cve_records = []
+
+    for data in data_list:
+        if isinstance(data, list):
+            for item in data:
+                await process_single_cve(item, cve_records)
+        else:
+            await process_single_cve(data, cve_records)
+
+    if cve_records:
+        try:
+            db.add_all(cve_records)
+            await db.commit()
+            logging.info(f"Successfully saved {len(cve_records)} CVE records to the database.")
+        except Exception as e:
+            await db.rollback()
+            logging.error(f"Error saving CVE records: {e}")
+            return {"message": "Batch upload failed"}

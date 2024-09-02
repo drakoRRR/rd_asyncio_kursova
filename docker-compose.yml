@@ -21,6 +21,20 @@ services:
       db_test:
         condition: service_healthy
 
+  scraper:
+    container_name: "scraper"
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    environment:
+      - API_URL=http://app:5000/cve/batch-upload
+      - REPO_URL=https://github.com/CVEProject/cvelistV5
+      - GIT_PYTHON_REFRESH=quiet
+    depends_on:
+      - app
+    volumes:
+      - ./scraper:/scraper
+    platform: linux/amd64
 
   db:
     container_name: "db"

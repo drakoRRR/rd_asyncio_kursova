@@ -8,7 +8,7 @@ from starlette import status
 from fastapi_pagination import Page, paginate
 
 from src.cve_app.repo import get_cve_record, create_cve_record, update_cve_record, delete_cve_record, \
-    search_cve_by_text, list_cve_records, search_cve_by_date_range
+    search_cve_by_text, list_cve_records, search_cve_by_date_range, upload_batch_cves
 from src.cve_app.schemas import CVERecord, CVERecordCreate, CVERecordUpdate
 from src.db import get_db
 from src.cve_app.exceptions import CVEAlreadyExistsException, CVENotFoundException
@@ -77,5 +77,13 @@ async def get_cve_list(
     size: int = Query(10, alias="size"),
     db: AsyncSession = Depends(get_db)
 ):
-    cve_records = await list_cve_records(db, page, size)
-    return paginate(cve_records)
+    return await list_cve_records(db, page, size)
+
+
+@cve_app.post("/cve/batch-upload", status_code=status.HTTP_200_OK)
+async def batch_upload_cve(
+    cve_records: list[dict],
+    db: AsyncSession = Depends(get_db)
+):
+    await upload_batch_cves(db, cve_records)
+    return {"message": "Batch upload completed successfully"}
