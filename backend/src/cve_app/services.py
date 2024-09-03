@@ -21,7 +21,7 @@ def __parse_datetime(datetime_str):
     raise ValueError(f"Time data '{datetime_str}' does not match any known format.")
 
 
-async def process_single_cve(data, cve_records):
+async def process_single_cve(data, existing_records, cve_records_to_add, cve_records_to_update):
     try:
         cve_id = data.get('cveMetadata', {}).get('cveId', None)
         published_date_str = data.get('cveMetadata', {}).get('datePublished', None)
@@ -44,16 +44,26 @@ async def process_single_cve(data, cve_records):
             logging.warning(f"Skipping CVE record due to missing required fields: {cve_id}")
             return
 
-        cve_record = CVERecord(
-            cve_id=cve_id,
-            published_date=published_date,
-            last_modified_date=last_modified_date,
-            title=title,
-            description=description,
-            problem_types=problem_types
-        )
-        cve_records.append(cve_record)
-        logging.debug(f"Processed CVE record {cve_id}")
+        if cve_id in existing_records:
+            record = existing_records[cve_id]
+            record.published_date = published_date
+            record.last_modified_date = last_modified_date
+            record.title = title
+            record.description = description
+            record.problem_types = problem_types
+            cve_records_to_update.append(record)
+            logging.debug(f"Updated CVE record {cve_id}")
+        else:
+            new_record = CVERecord(
+                cve_id=cve_id,
+                published_date=published_date,
+                last_modified_date=last_modified_date,
+                title=title,
+                description=description,
+                problem_types=problem_types
+            )
+            cve_records_to_add.append(new_record)
+            logging.debug(f"Inserted new CVE record {cve_id}")
 
     except Exception as e:
-        logging.error(f"Error processing CVE record: {e}")
+        logging.error(f"Error processing CVE record {cve_id}: {e}")

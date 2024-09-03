@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, Query
 
@@ -9,7 +9,7 @@ from fastapi_pagination import Page, paginate
 
 from src.cve_app.repo import get_cve_record, create_cve_record, update_cve_record, delete_cve_record, \
     search_cve_by_text, list_cve_records, search_cve_by_date_range, upload_batch_cves
-from src.cve_app.schemas import CVERecord, CVERecordCreate, CVERecordUpdate
+from src.cve_app.schemas import CVERecord, CVERecordCreate, CVERecordUpdate, CVEBatchUpload
 from src.db import get_db
 from src.cve_app.exceptions import CVEAlreadyExistsException, CVENotFoundException
 
@@ -82,8 +82,8 @@ async def get_cve_list(
 
 @cve_app.post("/cve/batch-upload", status_code=status.HTTP_200_OK)
 async def batch_upload_cve(
-    cve_records: list[dict],
+    body: CVEBatchUpload,
     db: AsyncSession = Depends(get_db)
 ):
-    await upload_batch_cves(db, cve_records)
+    await upload_batch_cves(db, body.cve_records)
     return {"message": "Batch upload completed successfully"}

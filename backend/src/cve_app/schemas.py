@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 
 class CVEBaseModel(BaseModel):
@@ -32,3 +32,7 @@ class CVERecordUpdate(BaseModel):
 
     class Config:
         extra = "allow"
+
+
+class CVEBatchUpload(BaseModel):
+    cve_records: Union[list, dict]

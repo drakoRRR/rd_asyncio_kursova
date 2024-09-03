@@ -1,7 +1,8 @@
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import update, delete
@@ -69,22 +70,30 @@ async def list_cve_records(db: AsyncSession, page: int, size: int):
     return await paginate(db, query)
 
 
-async def upload_batch_cves(db: AsyncSession, data_list: list[CVERecordModel]):
-    cve_records = []
+async def upload_batch_cves(db: AsyncSession, data_list: Union[list, dict]):
+    existing_records = await db.execute(select(CVERecordModel))
+    existing_records = {record.cve_id: record for record in existing_records.scalars().all()}
+
+    cve_records_to_add = []
+    cve_records_to_update = []
 
     for data in data_list:
         if isinstance(data, list):
             for item in data:
-                await process_single_cve(item, cve_records)
+                await process_single_cve(item, existing_records, cve_records_to_add, cve_records_to_update)
         else:
-            await process_single_cve(data, cve_records)
+            await process_single_cve(data, existing_records, cve_records_to_add, cve_records_to_update)
 
-    if cve_records:
-        try:
-            db.add_all(cve_records)
-            await db.commit()
-            logging.info(f"Successfully saved {len(cve_records)} CVE records to the database.")
-        except Exception as e:
-            await db.rollback()
-            logging.error(f"Error saving CVE records: {e}")
-            return {"message": "Batch upload failed"}
+    try:
+        if cve_records_to_add:
+            db.add_all(cve_records_to_add)
+        if cve_records_to_update:
+            for record in cve_records_to_update:
+                await db.merge(record)
+
+        await db.commit()
+        logging.info(f"Successfully saved or updated CVE records in the database.")
+    except IntegrityError as e:
+        await db.rollback()
+        logging.error(f"Error saving CVE records: {e}")
+        return {"message": "Batch upload failed"}

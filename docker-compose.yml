@@ -33,7 +33,7 @@ services:
     depends_on:
       - app
     volumes:
-      - ./scraper:/scraper
+      - scrape_data:/scraper
     platform: linux/amd64
 
   db:
@@ -76,3 +76,4 @@ services:
 volumes:
   dev-db:
   db_test:
+  scrape_data:
